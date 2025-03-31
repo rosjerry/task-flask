@@ -19,7 +19,7 @@ cd task-flask
 ### 2. Create a virtual environment
 
 ```bash
-python -m venv venv
+python -m venv env
 ```
 
 ### 3. Activate the virtual environment
@@ -31,13 +31,13 @@ venv\Scripts\activate
 
 On macOS/Linux:
 ```bash
-source venv/bin/activate
+source env/bin/activate
 ```
 
 ### 4. Install dependencies
 
 ```bash
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ## Running the Application
