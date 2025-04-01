@@ -80,7 +80,18 @@ def hello_world():
 
 @app.route("/login", methods=["POST"])
 def login():
-    return "token"
+    try:
+        data = request.get_json()
+        
+        if not data or 'email' not in data or 'password' not in data:
+            return jsonify({'error': 'Not enough credentials'}), 400
+        
+        if(check_email_exists(data['email']) == False):
+            return jsonify({'error': 'Email does not exist'}), 400
+        
+        return "token"
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route("/signup", methods=["POST"])
 def signup():
