@@ -19,7 +19,7 @@ cd task-flask
 ### 2. Create a virtual environment
 
 ```bash
-python -m venv env
+python3 -m venv env
 ```
 
 ### 3. Activate the virtual environment
