@@ -16,8 +16,8 @@ app = Flask(__name__)
 jwt = JWTManager(app)
 
 app.config["SECRET_KEY"] = "983dfb25-16cc-42ee-8907-a6bc05900277"
-table_name = "users_test_3"
-gsi_name = "email_id_gsi_3"
+table_name = "users_test_4"
+gsi_name = "email_id_gsi_4"
 
 dynamodb_client = boto3.client(
     "dynamodb",
@@ -73,13 +73,52 @@ def check_email_exists(email):
             KeyConditionExpression="email = :email",
             ExpressionAttributeValues={":email": {"S": email}},
         )
-        print(f"Query response: {response}")
-        print(response["Count"] > 0)
         return response["Count"] > 0
     except ClientError as e:
         print(f"Error checking email existence: {e}")
         return False
 
+def increment_login_counter(user_id, user_email):
+    try:
+        print(f"Incrementing login counter for user: {user_id}")
+        current_count_response = dynamodb_client.get_item(
+            TableName=table_name,
+            Key={
+                "id": {"S": user_id},
+                "email": {"S": user_email}
+            },
+            ProjectionExpression="login_counter",
+        )
+        
+        print({current_count_response["Item"]["login_counter"]["N"]})
+        
+        if "Item" not in current_count_response or "login_counter" not in current_count_response["Item"]:
+            dynamodb_client.update_item(
+                TableName=table_name,
+                Key={
+                    "id": {"S": user_id},
+                    "email": {"S": user_email}
+                },
+                UpdateExpression="SET login_counter = :start",
+                ExpressionAttributeValues={":start": {"N": "1"}},
+            )
+            print("Login counter initialized to 1.")
+            return jsonify({f"message": "Login counter initialized to 1."}), 200
+        
+        dynamodb_client.update_item(
+            TableName=table_name,
+            Key={
+                "id": {"S": user_id},
+                "email": {"S": user_email}
+            },
+            UpdateExpression="ADD login_counter :increment",
+            ExpressionAttributeValues={":increment": {"N": "1"}},
+            ReturnValues="UPDATED_NEW",
+        )
+        print("Login counter incremented.")
+    except ClientError as e:
+        print(f"Error incrementing login counter: {e}")
+        return None
 
 @app.route("/")
 def hello_world():
@@ -113,9 +152,8 @@ def login():
         )
 
         stored_id = response["Items"][0]["id"]["S"]
-        stored_email = response["Items"][0]["email"]["S"]
-        stored_name = response["Items"][0]["name"]["S"]
         stored_password_hash = response["Items"][0]["password_hash"]["S"]
+        stored_email = response["Items"][0]["email"]["S"]
 
         if check_password_hash(stored_password_hash, data["password"]) == False:
             return jsonify({"error": "Invalid password"}), 400
@@ -125,10 +163,9 @@ def login():
 
         if not token:
             return jsonify({"error": "Failed to auth"}), 500
+        
+        increment_login_counter(stored_id, stored_email)
 
-        # next tie, when token is returned, we must make atomic increment on successfull signin
-
-        print(f"Generated tokenm: {token}")
         return token
     except Exception as e:
         return jsonify({"error": str(e)}), 500
