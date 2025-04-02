@@ -119,7 +119,7 @@ def login():
         
         # next tie, when token is returned, we must make atomic increment on successfull signin
 
-        print(f"Generated token: {token}")
+        print(f"Generated tokenm: {token}")
         return token
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -167,5 +167,4 @@ def signup():
 
 
 if __name__ == "__main__":
-    app.debug = True
-    app.run(port=5000)
+    app.run(debug=True, port=5000)
