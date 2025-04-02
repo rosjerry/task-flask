@@ -1,11 +1,15 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session, redirect, url_for
+import datetime
 import boto3
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 from botocore.exceptions import ClientError
 import uuid
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 
 app = Flask(__name__)
+jwt = JWTManager(app)
 
+app.config['SECRET_KEY'] = '983dfb25-16cc-42ee-8907-a6bc05900277'
 table_name = "users_test_3"
 gsi_name = "email_id_gsi_3"
 
@@ -89,7 +93,34 @@ def login():
         if(check_email_exists(data['email']) == False):
             return jsonify({'error': 'Email does not exist'}), 400
         
-        return "token"
+        response = dynamodb_client.query(
+            TableName=table_name,
+            IndexName=gsi_name,
+            KeyConditionExpression='email = :email',
+            ExpressionAttributeValues={':email': {'S': data['email']}})
+        
+        stored_id = response['Items'][0]['id']['S']
+        stored_email = response['Items'][0]['email']['S']
+        stored_name = response['Items'][0]['name']['S']
+        stored_password_hash = response['Items'][0]['password_hash']['S']
+        
+        if check_password_hash(stored_password_hash, data['password']) == False:
+            return jsonify({'error': 'Invalid password'}), 400
+        
+        expiration_time = datetime.timedelta(days=1)
+        token = create_access_token(identity={
+            'user_id': stored_id,
+            'email': stored_email,
+            'name': stored_name
+            }, expires_delta=expiration_time)
+        
+        if not token:
+            return jsonify({'error': 'Failed to auth'}), 500
+        
+        # next tie, when token is returned, we must make atomic increment on successfull signin
+
+        print(f"Generated token: {token}")
+        return token
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
